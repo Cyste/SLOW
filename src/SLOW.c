@@ -19,6 +19,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -45,7 +46,7 @@ typedef struct SLOW_Node
 {
 	SLOW_Word word;
 	struct SLOW_Node* children[2];
-	int haveChildren;
+	int hasChildren;
 } SLOW_Node;
 
 static
@@ -188,11 +189,7 @@ int SLOW_ShuntingYard(const char* expression, SLOW_Word* output)
 
 	for (unsigned int i = 0; words[i].text[0]; ++i)
 	{
-		if (SLOW_IsNumber(words[i].text))
-		{
-			strcpy((output++)->text, words[i].text);
-		}
-		else if (words[i].text[0] == '(') // special case
+		if (words[i].text[0] == '(') // special case
 		{
 			strcpy((s++)->text, words[i].text);
 		}
@@ -206,7 +203,7 @@ int SLOW_ShuntingYard(const char* expression, SLOW_Word* output)
 			if (s == stack)
 				return SLOW_FALSE;
 		}
-		else // operator
+		else if (SLOW_IsOperator(words[i].text, 0, 0))
 		{
 			if (s == stack || SLOW_GetOperatorPrecedence(words[i].text) > SLOW_GetOperatorPrecedence(s->text))
 			{
@@ -221,6 +218,10 @@ int SLOW_ShuntingYard(const char* expression, SLOW_Word* output)
 				}
 				strcpy((s++)->text, words[i].text);
 			}
+		}
+		else
+		{
+			strcpy((output++)->text, words[i].text);
 		}
 	}
 
@@ -238,7 +239,7 @@ void SLOW_FreeNode(SLOW_Node* node)
 {
 	if (node)
 	{
-		if (node->haveChildren)
+		if (node->hasChildren)
 		{
 			SLOW_FreeNode(node->children[0]);
 			SLOW_FreeNode(node->children[1]);
@@ -253,7 +254,7 @@ SLOW_Node* SLOW_InitNode(void)
 	SLOW_Node* node = malloc(sizeof(SLOW_Node));
 	node->children[0] = 0;
 	node->children[1] = 0;
-	node->haveChildren = 0;
+	node->hasChildren = SLOW_FALSE;
 	node->word.text[0] = 0;
 	return node;
 }
@@ -273,7 +274,7 @@ int SLOW_ParseNode(SLOW_Node* node, SLOW_Word* output, unsigned int* i)
 	else if (SLOW_IsOperator(output->text, 0, 0))
 	{
 		if (i) *i += 2;
-		node->haveChildren = SLOW_TRUE;
+		node->hasChildren = SLOW_TRUE;
 		node->children[0] = SLOW_InitNode();
 		node->children[1] = SLOW_InitNode();
 
@@ -301,4 +302,21 @@ int SLOW_Parse(const char* expression, SLOW_Node* node)
 	SLOW_ParseNode(node, output, 0);
 
 	return SLOW_TRUE;
+}
+
+int SLOW_NodeHasChildren(SLOW_Node* node)
+{
+	return node->hasChildren;
+}
+
+SLOW_Node* SLOW_NodeGetChild(SLOW_Node* node, unsigned char i)
+{
+	if (i < 2)
+		return node->children[i];
+	return 0;
+}
+
+const SLOW_Word* SLOW_NodeGetWord(SLOW_Node* node)
+{
+	return &node->word;
 }

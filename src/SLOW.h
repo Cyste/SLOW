@@ -42,6 +42,12 @@ int SLOW_ShuntingYard(const char* expression, SLOW_Word* output);
 
 int SLOW_Parse(const char* expression, SLOW_Node* node);
 
+int SLOW_NodeHasChildren(SLOW_Node* node);
+
+SLOW_Node* SLOW_NodeGetChild(SLOW_Node* node, unsigned char i);
+
+const SLOW_Word* SLOW_NodeGetWord(SLOW_Node* node);
+
 #ifdef __cplusplus
 }
 #endif
