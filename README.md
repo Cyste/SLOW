@@ -1,7 +1,7 @@
 # SLOW
 Simple and fast math parser
 ### Math expression to Reverse Polish Notation
-```cpp
+```c
 #include "SLOW.h"
 
 #include <stdio.h>
@@ -23,7 +23,7 @@ int main(int argc, char** argv)
 }
 ```
 ### Math expression to Node hierarchy
-```cpp
+```c
 #include "SLOW.h"
 
 #include <stdio.h>
@@ -48,6 +48,21 @@ int main(int argc, char** argv)
 	WriteNode(node);
 
 	SLOW_FreeNode(node);
+
+	return 0;
+}
+```
+### Parse math expression
+```c
+#include "SLOW.h"
+
+#include <stdio.h>
+
+int main(int argc, char** argv)
+{
+	float a = SLOW_Eval("12 + 3 * (33 + 7 * 11 - 3 ^ 2)");
+
+	printf("a = %f\n", a);
 
 	return 0;
 }
