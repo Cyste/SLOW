@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 #define SLOW_STACK_SIZE  64
 #define SLOW_OUTPUT_SIZE 64
@@ -42,6 +43,76 @@
 	}									   \
 }
 
+typedef float (*SLOW_OPERATOR)(float, float);
+
+float SLOW_OperatorAdd(float a, float b)
+{
+	return a + b;
+}
+
+float SLOW_OperatorSub(float a, float b)
+{
+	return a - b;
+}
+
+float SLOW_OperatorMul(float a, float b)
+{
+	return a * b;
+}
+
+float SLOW_OperatorDiv(float a, float b)
+{
+	return a / b;
+}
+
+float SLOW_OperatorPow(float a, float b)
+{
+	return powf(a, b);
+}
+
+typedef struct SLOW_Operator
+{
+	const char* string;
+	SLOW_OPERATOR eval;
+} SLOW_Operator;
+
+SLOW_Operator operators[] =
+{
+	{ "(", 0 },
+	{ ")", 0 },
+	{ "-", &SLOW_OperatorSub },
+	{ "+", &SLOW_OperatorAdd },
+	{ "*", &SLOW_OperatorMul },
+	{ "/", &SLOW_OperatorDiv },
+	{ "^", &SLOW_OperatorPow },
+};
+
+static
+const SLOW_Operator* SLOW_GetOperator(const char* string)
+{
+	for (unsigned int i = 0; i < sizeof(operators) / sizeof(*operators); ++i)
+	{
+		int result = SLOW_TRUE;
+		for (unsigned int j = 0; operators[i].string[j]; ++j)
+		{
+			if (!string[j])
+			{
+				result = SLOW_FALSE;
+				break;
+			}
+
+			if (string[j] != operators[i].string[j])
+			{
+				result = SLOW_FALSE;
+				break;
+			}
+		}
+		if (result)
+			return &operators[i];
+	}
+	return 0;
+}
+
 typedef struct SLOW_Node
 {
 	SLOW_Word word;
@@ -54,8 +125,10 @@ int SLOW_IsNumber(const char* string)
 {
 	while(*string)
 	{
-		if (!isdigit(*string++))
+		if (*string != '.' && !isdigit(*string))
 			return SLOW_FALSE;
+
+		string++;
 	} 
 	return SLOW_TRUE;
 }
@@ -75,29 +148,17 @@ int SLOW_IsSeparator(char c)
 static 
 int SLOW_IsOperator(const char* c, char* op, unsigned int* op_size)
 {
-	static const char* operators[] = 
-	{
-		"(",
-		")",
-		"-",
-		"+",
-		"+",
-		"*",
-		"/",
-		"^",
-	};
-
 	for (unsigned int i = 0; i < sizeof(operators) / sizeof(*operators); ++i)
 	{
 		int result = SLOW_TRUE;
-		for (unsigned int j = 0; operators[i][j]; ++j)
+		for (unsigned int j = 0; operators[i].string[j]; ++j)
 		{
 			if (!c[j])
 			{
 				 result = SLOW_FALSE;
 				 break;
 			}
-			if (c[j] != operators[i][j])
+			if (c[j] != operators[i].string[j])
 			{
 				result = SLOW_FALSE;
 				break;
@@ -105,8 +166,8 @@ int SLOW_IsOperator(const char* c, char* op, unsigned int* op_size)
 		}
 		if (result)
 		{
-			if (op) strcpy(op, operators[i]);
-			if (op_size) *op_size = strlen(operators[i]);
+			if (op) strcpy(op, operators[i].string);
+			if (op_size) *op_size = strlen(operators[i].string);
 			return SLOW_TRUE;
 		}
 	}
@@ -249,6 +310,7 @@ void SLOW_FreeNode(SLOW_Node* node)
 	}
 }
 
+static
 SLOW_Node* SLOW_InitNode(void)
 {
 	SLOW_Node* node = malloc(sizeof(SLOW_Node));
@@ -287,21 +349,23 @@ int SLOW_ParseNode(SLOW_Node* node, SLOW_Word* output, unsigned int* i)
 	return SLOW_TRUE;
 }
 
-int SLOW_Parse(const char* expression, SLOW_Node* node)
+SLOW_Node* SLOW_Parse(const char* expression)
 {
+	SLOW_Node* node;
 	SLOW_Word output[SLOW_OUTPUT_SIZE];
 	unsigned int outputSize;
 
 	if (!SLOW_ShuntingYard(expression, output))
-		return SLOW_FALSE;
+		return 0;
 
 	for (outputSize = 0; output[outputSize].text[0]; outputSize++) { }
 
 	SLOW_SWAP_ARRAY(SLOW_Word, output, outputSize);
 
+	node = SLOW_InitNode();
 	SLOW_ParseNode(node, output, 0);
 
-	return SLOW_TRUE;
+	return node;
 }
 
 int SLOW_NodeHasChildren(SLOW_Node* node)
@@ -319,4 +383,32 @@ SLOW_Node* SLOW_NodeGetChild(SLOW_Node* node, unsigned char i)
 const SLOW_Word* SLOW_NodeGetWord(SLOW_Node* node)
 {
 	return &node->word;
+}
+
+float SLOW_Eval(const char* expression)
+{
+	SLOW_Word output[SLOW_WORD_COUNT];
+	float stack[SLOW_STACK_SIZE];
+	float* s = stack;
+
+	if (!SLOW_ShuntingYard(expression, output))
+		return 0.0f;
+
+	for (unsigned int i = 0; output[i].text[0]; ++i)
+	{
+		if (SLOW_IsNumber(output[i].text))
+		{
+			*s++ = (float)atof(output[i].text);
+		}
+		else // operator
+		{
+			float a = *(--s);
+			float b = *(--s);
+			
+			SLOW_Operator* op = SLOW_GetOperator(output[i].text);
+			if (op && op->eval)
+				*s++ = op->eval(b, a);
+		}
+	}
+	return stack[0];
 }

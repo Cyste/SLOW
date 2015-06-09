@@ -23,6 +23,9 @@
 
 #define SLOW_WORD_SIZE   64
 
+#define SLOW_TOKEN_NUMBER   0
+#define SLOW_TOKEN_OPERATOR 1
+
 typedef struct SLOW_Word
 {
 	char text[SLOW_WORD_SIZE];
@@ -36,17 +39,17 @@ extern "C" {
 
 void SLOW_FreeNode(SLOW_Node* node);
 
-SLOW_Node* SLOW_InitNode(void);
-
 int SLOW_ShuntingYard(const char* expression, SLOW_Word* output);
 
-int SLOW_Parse(const char* expression, SLOW_Node* node);
+SLOW_Node* SLOW_Parse(const char* expression);
 
 int SLOW_NodeHasChildren(SLOW_Node* node);
 
 SLOW_Node* SLOW_NodeGetChild(SLOW_Node* node, unsigned char i);
 
 const SLOW_Word* SLOW_NodeGetWord(SLOW_Node* node);
+
+float SLOW_Eval(const char* expression);
 
 #ifdef __cplusplus
 }
